@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<!--
+  Output box for main.mlapp (shown in the OutputDisplay uihtml component).
+  The app sends the message text through htmlComponent.Data (see setOutput);
+  it is shown as plain text, wrapped, and scrolls if it doesn't fit.
+  Change the colours here to restyle the box.
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: #212121;          /* matches the app window behind the box */
+    overflow: hidden;
+  }
+  #box {
+    box-sizing: border-box;
+    height: 100%;
+    background: #30302E;          /* warm dark grey */
+    color: #F5F4EF;               /* warm white */
+    border: 1px solid #4A4945;
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    font-size: 13px;
+    line-height: 1.45;
+    white-space: pre-wrap;        /* keep line breaks, wrap long lines */
+    overflow-wrap: anywhere;
+    overflow-y: auto;
+  }
+</style>
+</head>
+<body>
+<div id="box"></div>
+<script>
+  function setup(htmlComponent) {
+    const box = document.getElementById("box");
+    const show = () => {
+      const d = htmlComponent.Data;
+      box.textContent = (d === null || d === undefined) ? "" : String(d);
+    };
+    htmlComponent.addEventListener("DataChanged", show);
+    show();
+  }
+</script>
+</body>
+</html>
