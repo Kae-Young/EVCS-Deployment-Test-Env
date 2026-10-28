@@ -14,6 +14,9 @@ function T = gnafLoad(srcFile, latLim, lonLim, keepVars, outFile)
 %   address except PRIMARY (unit-complex building) addresses, whose units are
 %   already listed individually. IsAlias marks alias rows: alternative names
 %   for an address that is already in the file, at the same location.
+%
+%   If the .mat master doesn't exist yet, it is built first (about a minute)
+%   by buildGnafMaster from australia_gnaf_core.psv in the same folder.
 
     if nargin < 4
         keepVars = [];
@@ -45,6 +48,13 @@ end
 
 function T = loadFromMat(matFile, latLim, lonLim)
 % Fast path: culled master with Latitude, Longitude and IsAlias arrays
+
+    % Build the master from the original .psv if it isn't there yet
+    if ~isfile(matFile)
+        psvFile = fullfile(fileparts(matFile), "australia_gnaf_core.psv");
+        buildGnafMaster(psvFile, matFile);
+    end
+
     M = load(matFile, "Latitude", "Longitude", "IsAlias");
 
     inRect = M.Latitude  >= latLim(1) & M.Latitude  <= latLim(2) & ...
