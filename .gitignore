@@ -39,3 +39,4 @@ codegen/
 *.sbproj.backup
 *.sbproj.bak
 australia_gnaf_core.psv
+gnaf_master.mat
