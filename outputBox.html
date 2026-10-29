@@ -3,6 +3,8 @@
   Output box for main.mlapp (shown in the OutputDisplay uihtml component).
   The app sends the message text through htmlComponent.Data (see setOutput);
   it is shown as plain text, wrapped, and scrolls if it doesn't fit.
+  Table lines (starting "Bus No:" or "b<number>:", as written by
+  layoutReport.m) are shown in a fixed-width font so their columns line up.
   Change the colours here to restyle the box.
 -->
 <html>
@@ -30,6 +32,13 @@
     overflow-wrap: anywhere;
     overflow-y: auto;
   }
+  .line { min-height: 1.45em; }   /* keeps blank lines visible */
+  .table {
+    font-family: Consolas, "Cascadia Mono", "Courier New", monospace;
+    font-size: 12px;
+    white-space: pre;             /* table rows never wrap */
+  }
+  .table.head { color: #C9C7BE; font-weight: 600; }
 </style>
 </head>
 <body>
@@ -39,7 +48,17 @@
     const box = document.getElementById("box");
     const show = () => {
       const d = htmlComponent.Data;
-      box.textContent = (d === null || d === undefined) ? "" : String(d);
+      const text = (d === null || d === undefined) ? "" : String(d);
+      box.textContent = "";
+      // one element per line; text is inserted with textContent, never as HTML
+      for (const line of text.split(/\r?\n/)) {
+        const el = document.createElement("div");
+        el.className = "line";
+        if (/^Bus No:/.test(line)) el.className += " table head";
+        else if (/^b\d+:/.test(line)) el.className += " table";
+        el.textContent = line;
+        box.appendChild(el);
+      }
     };
     htmlComponent.addEventListener("DataChanged", show);
     show();

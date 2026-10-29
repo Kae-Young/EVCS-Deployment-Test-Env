@@ -1,0 +1,48 @@
+function z = voronoiZones(cov, Q, tree)
+%VORONOIZONES Raster Voronoi diagram: give every coverage pixel to its nearest bus.
+%
+%   z = voronoiZones(cov, Q, tree)
+%
+%   cov   coverage struct (coverageFromAddresses / coverageFromPolygon)
+%   Q     33x2 bus positions in km (row 1 = substation, ignored here)
+%   tree  ieee33Tree()
+%
+%   WHY A RASTER?
+%   A true Voronoi diagram is unbounded and has to be clipped to an irregular
+%   coverage boundary - fiddly and slow.  Instead every pixel simply looks up
+%   its nearest bus.  A zone's area is then its pixel count times the pixel
+%   area, which works for any boundary shape (coastlines, holes, odd shapes).
+%
+%   OUTPUT
+%     z.label    N x 1, zone number (1..32) of each coverage pixel; zone k
+%                belongs to bus index tree.zoneIdx(k), i.e. IEEE bus k
+%     z.share    32 x 1, fraction of the coverage area in each zone
+%     z.err      32 x 1, share - target   (positive = zone too big)
+%     z.sse      sum(err.^2)              (unweighted; layoutScore applies
+%                                          the errorWeights for the objective)
+%     z.maxAbs   max |err|                (worst bus, as a fraction)
+%     z.meanRel  mean |err| / target      (typical error relative to target)
+%     z.maxRel   max  |err| / target      (worst bus relative to its target)
+
+    Z = Q(tree.zoneIdx, :);                 % positions of the 32 loaded buses
+    nz = size(Z, 1);
+
+    % Nearest-bus search by brute force: for each bus, the squared distance
+    % from every pixel; keep the running minimum.  32 passes over ~40 000
+    % pixels is fast and needs no toolbox (knnsearch would also work).
+    best = inf(cov.N, 1);
+    z.label = ones(cov.N, 1);
+    for k = 1:nz
+        d2 = (cov.pix(:, 1) - Z(k, 1)).^2 + (cov.pix(:, 2) - Z(k, 2)).^2;
+        closer = d2 < best;
+        best(closer) = d2(closer);
+        z.label(closer) = k;
+    end
+
+    z.share   = accumarray(z.label, 1, [nz 1]) / cov.N;
+    z.err     = z.share - tree.target;
+    z.sse     = sum(z.err.^2);
+    z.maxAbs  = max(abs(z.err));
+    z.meanRel = mean(abs(z.err) ./ tree.target);
+    z.maxRel  = max(abs(z.err) ./ tree.target);
+end
