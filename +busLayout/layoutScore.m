@@ -5,7 +5,9 @@ function [F, z, parts] = layoutScore(cov, busXY, tree, opts)
 %
 %        F = SSE + lambda * LINE + mu * TURN
 %
-%   SSE   sum over the 32 zones of w_k * (area share - load share)^2, with
+%   SSE   sum over the 32 zones of w_k * (zone share - load share)^2, where
+%         the zone share is its share of the dwellings (after addDwellings,
+%         using the smoothed density) or of the area, and
 %         the weights w_k from errorWeights.  By default (errorMode
 %         'balanced') each squared miss is divided by the bus's target
 %         share, so small buses are not neglected in favour of big ones.

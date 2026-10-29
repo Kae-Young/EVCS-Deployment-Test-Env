@@ -24,6 +24,8 @@ function cov = coverageFromAddresses(lat, lon, seedLatLon, nDwellings, opts)
 %      to bridge streets and small parks between houses.
 %   6. finishCoverage: fill enclosed holes, apply the optional coastline clip
 %      and keep the largest connected piece.
+%   7. addDwellings: the chosen addresses become the dwellings that zone
+%      shares count (so each zone's share is its share of these dwellings).
 %
 %   The result is a struct describing the raster - see finishCoverage.
 
@@ -38,6 +40,7 @@ function cov = coverageFromAddresses(lat, lon, seedLatLon, nDwellings, opts)
     [~, order] = sort(X(:, 1).^2 + X(:, 2).^2);
     n = min(nDwellings, numel(order));
     addr = X(order(1:n), :);
+    addrLat = lat(order(1:n)); addrLon = lon(order(1:n));
 
     % ---- 3. Pixel grid over the patch (shifted so all coordinates >= 0).
     grid = busLayout.rasterGrid(addr, opts);
@@ -65,6 +68,9 @@ function cov = coverageFromAddresses(lat, lon, seedLatLon, nDwellings, opts)
     geo = struct('lat0', lat0, 'lon0', lon0, 'kx', kx, 'ky', ky, 'offset', grid.offset);
     cov = busLayout.finishCoverage(mask, pixelSize_km, geo, opts);
     cov.addr = addr;                     % kept for plotting
+
+    % ---- 7. Zone shares count these dwellings.
+    cov = busLayout.addDwellings(cov, addrLat, addrLon, opts);
 end
 
 

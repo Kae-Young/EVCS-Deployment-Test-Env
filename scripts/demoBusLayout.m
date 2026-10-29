@@ -9,8 +9,9 @@
 %     1. Load the feeder and work out how many dwellings it can serve.
 %     2. Load cached G-NAF addresses and build a feeder-sized coverage area
 %        around a seed point.
-%     3. Generate the layout and report how well areas match loads.
-%     4. Plot it, and show per-bus area share vs load share.
+%     3. Generate the layout and report how well each zone's share of the
+%        dwellings matches its bus's share of the load.
+%     4. Plot it, and show per-bus dwelling share vs load share.
 
 %% 0. Paths
 addpath(fullfile(fileparts(mfilename('fullpath')), '..'));
@@ -31,6 +32,8 @@ if ismember('IsAlias', T.Properties.VariableNames)
 end
 seed = [-19.303 146.722];                  % [lat lon] of the area's centre
 cov = busLayout.coverageFromAddresses(T.Latitude, T.Longitude, seed, tree.dwellings, opts);
+% (these addresses are also attached as the dwellings that zone shares count;
+%  for a drawn polygon use busLayout.addDwellings(cov, lat, lon, opts))
 fprintf('Coverage: %.2f km^2 on a %.0f m raster (%d pixels)\n', cov.area, 1000 * cov.pixelSize_km, cov.N);
 
 % To bound the area by a coastline instead, pass the polygon as a clip:
@@ -44,14 +47,15 @@ res = busLayout.generate(cov, tree, opts);
 % Bus coordinates for overlaying on your map (node 0 = substation):
 busTable = table(res.nodeNo, res.lat, res.lon, 'VariableNames', {'Node', 'Lat', 'Lon'});
 disp(busTable(1:5, :));
+disp(busLayout.layoutReport(res, cov, opts));
 
 %% 4. Plots
 busLayout.plotLayout(cov, tree, res);
 
 figure('Color', 'w');
 bar(1:32, 100 * [res.target res.share]);
-legend({'load share (target)', 'area share'}, 'Location', 'northwest');
-xlabel('bus'); ylabel('% of total'); title('Area share vs load share');
+legend({'load share (target)', 'dwelling share'}, 'Location', 'northwest');
+xlabel('bus'); ylabel('% of total'); title('Dwelling share vs load share');
 
 %% Optional: PSO polish of the result (slower, small gain)
 % opts.usePSO = true;

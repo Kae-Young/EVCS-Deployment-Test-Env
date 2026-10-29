@@ -32,7 +32,8 @@ function starts = graphLayoutStarts(cov, tree, opts)
 %   ---------------------------------------------
 %   The drawing has arbitrary scale and orientation.  Both point clouds (the
 %   33 drawn nodes and the coverage pixels) are reduced to their centre and
-%   principal axes (via SVD).  The drawing is rotated so its long axis lies
+%   principal axes (via SVD); the pixels are weighted by cov.weight, so with
+%   dwelling weights the drawing is fitted over where the dwellings are.  The drawing is rotated so its long axis lies
 %   along the coverage's long axis, and stretched so its spread (standard
 %   deviation) along each axis matches the coverage's.
 %
@@ -146,17 +147,25 @@ end
 
 function busXY = fitToCoverage(X, cov, flip)
 % Rotate, stretch, mirror and move the drawing X onto the coverage area.
-    [cX, axX, sdX] = frame(X);
-    [cC, axC, sdC] = frame(cov.pix);
+    [cX, axX, sdX] = frame(X, []);
+    if isfield(cov, 'weight')
+        [cC, axC, sdC] = frame(cov.pix, cov.weight);   % centre/spread of the dwellings (or area)
+    else
+        [cC, axC, sdC] = frame(cov.pix, []);
+    end
     U = (X - cX) * axX';            % drawing in its own principal axes
     U = U ./ sdX .* flip;           % unit spread, optionally mirrored
     busXY = (U .* sdC) * axC + cC;      % coverage spread, coverage axes, centre
 end
 
-function [c, ax, sd] = frame(P)
-% Centre, principal axes (rows of ax) and spread along each axis.
-    c = mean(P, 1);
-    [~, S, V] = svd(P - c, 'econ');
+function [c, ax, sd] = frame(P, w)
+% Weighted centre, principal axes (rows of ax) and spread along each axis.
+% w = [] means every point counts the same.  With dwelling weights the
+% drawing is centred and stretched over where the dwellings are.
+    if isempty(w), w = ones(size(P, 1), 1); end
+    w = w(:) / sum(w);
+    c = sum(P .* w, 1);
+    [~, S, V] = svd((P - c) .* sqrt(w), 'econ');
     ax = V';
-    sd = diag(S)' / sqrt(size(P, 1));
+    sd = diag(S)';
 end

@@ -15,13 +15,17 @@ function opts = defaultOptions(varargin)
 %   ------------------------------------------------------------------------
 %   Goal: place the 33 buses of the IEEE-33 feeder over a map so that, when
 %   the map is divided into Voronoi cells ("electrical zones": every point
-%   belongs to its nearest bus), the share of AREA each bus gets equals the
-%   share of LOAD that bus carries in the IEEE-33 system.  The layout must
+%   belongs to its nearest bus), the share of DWELLINGS each bus's zone
+%   captures equals the share of LOAD that bus carries in the IEEE-33 system
+%   (dwellings stand in for load).  Without dwelling data, the share of
+%   AREA is used instead.  The layout must
 %   also look like a believable feeder: lines must not cross and the feeder
 %   must not double back on itself (no hairpin turns).
 %
 %     1. coverageFromAddresses / coverageFromPolygon
 %          turn the study area into a raster (grid of small square pixels).
+%        addDwellings
+%          attach the dwellings, so zone shares count dwellings, not area.
 %     2. buildFeederTree
 %          read the feeder: which bus feeds which, and each bus's load share.
 %     3. graphLayoutStarts
@@ -35,6 +39,8 @@ function opts = defaultOptions(varargin)
 %          runs 3 + 4 for every start and keeps the best result.
 %     6. psoPolish (optional)
 %          a particle swarm seeded with the best result, for a final polish.
+%     7. exactRefine (dwellings only)
+%          nudge buses one at a time to get the exact dwelling counts right.
 %
 %   ------------------------------------------------------------------------
 %   SETTINGS
@@ -63,6 +69,21 @@ function opts = defaultOptions(varargin)
     opts.closeRadius_km  = 0.10;    % closes gaps up to ~200 m wide
     opts.margin_km       = 0.10;    % empty border kept around the area
 
+    % ---- Dwellings as load (addDwellings) -------------------------------------
+    % For the optimiser, each dwelling is spread as a small Gaussian blob of
+    % this standard deviation, giving a smooth dwelling density it can follow
+    % (a zone's count would otherwise only change when its edge jumps over a
+    % house).  About one house lot.  Results are always reported with the
+    % exact dwelling counts.
+    opts.dwellingSmooth_km = 0.025;
+
+    % The smoothing blurs dwellings across the edges of small zones, so after
+    % the correction a final pattern search (exactRefine) nudges one bus at a
+    % time to improve the EXACT dwelling counts.  Dwelling basis only.
+    opts.useExactRefine  = true;
+    opts.refineStepFrac  = 0.03;    % first trial move = 3% of the area's width
+    opts.refineMaxEvals  = 20000;   % cap on score evaluations
+
     % Optional clipping polygon (e.g. a coastline) in degrees.  Pixels outside
     % this polygon are removed from the coverage.  Leave empty for none.
     opts.clipLat = [];
@@ -78,7 +99,8 @@ function opts = defaultOptions(varargin)
     % The correction minimises
     %     F = SSE  +  lambda * LINE  +  mu * TURN
     % where
-    %     SSE  = weighted sum over buses of (area share - load share)^2
+    %     SSE  = weighted sum over buses of (zone share - load share)^2,
+    %            zone share = share of dwellings (or area)
     %            (the goal; see errorMode below)
     %     LINE = mean squared line length / D^2  (D = sqrt(coverage area));
     %            keeps lines short so buses stay near their neighbours

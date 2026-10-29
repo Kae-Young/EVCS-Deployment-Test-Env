@@ -23,6 +23,11 @@ function cov = finishCoverage(mask, pixelSize_km, geo, opts)
 %     cov.D        sqrt(area) - the length scale used for step sizes and
 %                  for making the line-length penalty scale-free
 %     cov.geo      origin and scale for km <-> lat/lon (see toLatLon)
+%     cov.weight   N x 1 what each pixel counts towards a zone's share.
+%                  Here: its area (km^2), so shares are shares of AREA.
+%                  addDwellings replaces it with dwellings per pixel.
+%     cov.totalWeight   sum(cov.weight)
+%     cov.basis    'area' (or 'dwellings' after addDwellings)
 
     [ny, nx] = size(mask);
 
@@ -63,6 +68,9 @@ function cov = finishCoverage(mask, pixelSize_km, geo, opts)
     cov.area = cov.N * pixelSize_km^2;
     cov.D    = sqrt(cov.area);
     cov.geo  = geo;
+    cov.weight = repmat(pixelSize_km^2, cov.N, 1);
+    cov.totalWeight = cov.area;
+    cov.basis = 'area';
 end
 
 
