@@ -5,6 +5,8 @@
   it is shown as plain text, wrapped, and scrolls if it doesn't fit.
   Table lines (starting "Bus No:" or "b<number>:", as written by
   layoutReport.m) are shown in a fixed-width font so their columns line up.
+  So are lines starting with a TAB (a table row) or two TABs (a table header),
+  as written by +evcs/reports.m; the tabs themselves are not shown.
   Change the colours here to restyle the box.
 -->
 <html>
@@ -54,9 +56,12 @@
       for (const line of text.split(/\r?\n/)) {
         const el = document.createElement("div");
         el.className = "line";
+        let shown = line;
         if (/^Bus No:/.test(line)) el.className += " table head";
         else if (/^b\d+:/.test(line)) el.className += " table";
-        el.textContent = line;
+        else if (/^\t\t/.test(line)) { el.className += " table head"; shown = line.slice(2); }
+        else if (/^\t/.test(line))   { el.className += " table";      shown = line.slice(1); }
+        el.textContent = shown;
         box.appendChild(el);
       }
     };
