@@ -1,7 +1,7 @@
-function cov = finishCoverage(mask, cell, geo, opts)
+function cov = finishCoverage(mask, pixelSize_km, geo, opts)
 %FINISHCOVERAGE Shared last steps for building a coverage raster.
 %
-%   cov = finishCoverage(mask, cell, geo, opts)
+%   cov = finishCoverage(mask, pixelSize_km, geo, opts)
 %
 %   1. Fill holes: any patch of non-coverage completely surrounded by
 %      coverage (a park, a lake in the middle of the suburb) is added in.
@@ -15,11 +15,11 @@ function cov = finishCoverage(mask, cell, geo, opts)
 %   ----------------------
 %     cov.mask     ny x nx logical grid; row 1 = southern edge, column 1 =
 %                  western edge (plot with "axis xy")
-%     cov.cell     pixel size (km)
+%     cov.pixelSize_km     pixel size (km)
 %     cov.idx      linear indices of coverage pixels inside cov.mask
 %     cov.pix      N x 2 [x y] centres of the coverage pixels (km)
 %     cov.N        number of coverage pixels
-%     cov.area     coverage area (km^2) = N * cell^2
+%     cov.area     coverage area (km^2) = N * pixelSize_km^2
 %     cov.D        sqrt(area) - the length scale used for step sizes and
 %                  for making the line-length penalty scale-free
 %     cov.geo      origin and scale for km <-> lat/lon (see toLatLon)
@@ -40,7 +40,7 @@ function cov = finishCoverage(mask, cell, geo, opts)
     if ~isempty(opts.clipLat)
         PX = (opts.clipLon(:) - geo.lon0) * geo.kx - geo.offset(1);
         PY = (opts.clipLat(:) - geo.lat0) * geo.ky - geo.offset(2);
-        [CX, CY] = meshgrid(((1:nx) - 0.5) * cell, ((1:ny) - 0.5) * cell);
+        [CX, CY] = meshgrid(((1:nx) - 0.5) * pixelSize_km, ((1:ny) - 0.5) * pixelSize_km);
         mask = mask & inpolygon(CX, CY, PX, PY);
     end
 
@@ -55,12 +55,12 @@ function cov = finishCoverage(mask, cell, geo, opts)
 
     % ---- 4. Pixel list.
     cov.mask = mask;
-    cov.cell = cell;
+    cov.pixelSize_km = pixelSize_km;
     cov.idx  = find(mask);
     [iy, ix] = ind2sub([ny nx], cov.idx);
-    cov.pix  = [(ix - 0.5) * cell, (iy - 0.5) * cell];
+    cov.pix  = [(ix - 0.5) * pixelSize_km, (iy - 0.5) * pixelSize_km];
     cov.N    = numel(cov.idx);
-    cov.area = cov.N * cell^2;
+    cov.area = cov.N * pixelSize_km^2;
     cov.D    = sqrt(cov.area);
     cov.geo  = geo;
 end

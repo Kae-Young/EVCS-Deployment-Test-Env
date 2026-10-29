@@ -1,11 +1,14 @@
-function opts = busLayoutOptions(varargin)
-%BUSLAYOUTOPTIONS Default settings for the IEEE-33 geographic bus layout.
+function opts = defaultOptions(varargin)
+%DEFAULTOPTIONS Default settings for the IEEE-33 geographic bus layout.
 %
-%   opts = busLayoutOptions()                 returns every setting at its default
-%   opts = busLayoutOptions('name', value, ...) overrides individual settings
+%   opts = busLayout.defaultOptions()                  every setting at its default
+%   opts = busLayout.defaultOptions('name', value, ...) overrides individual settings
 %
-%   Every function in this folder takes this one options struct, so all of
-%   the tuning knobs for the whole method live (and are documented) here.
+%   Every function in the busLayout package takes this one options struct, so
+%   all of the tuning knobs for the whole method live (and are documented) here.
+%
+%   NAMING: a field holding a physical quantity ends in its unit
+%   (_km, _kVA, _deg, _s); fractions end in Frac; switches start with use.
 %
 %   ------------------------------------------------------------------------
 %   WHAT THE METHOD DOES (overview - each step has its own function)
@@ -19,7 +22,7 @@ function opts = busLayoutOptions(varargin)
 %
 %     1. coverageFromAddresses / coverageFromPolygon
 %          turn the study area into a raster (grid of small square pixels).
-%     2. ieee33Tree
+%     2. buildFeederTree
 %          read the feeder: which bus feeds which, and each bus's load share.
 %     3. graphLayoutStarts
 %          draw the feeder tree as a tidy graph (Kamada-Kawai) and stretch it
@@ -28,7 +31,7 @@ function opts = busLayoutOptions(varargin)
 %          from each start, repeatedly nudge buses so zone areas move towards
 %          their load shares, while refusing any move that makes lines cross
 %          and penalising sharp turns.
-%     5. generateBusLayout
+%     5. generate
 %          runs 3 + 4 for every start and keeps the best result.
 %     6. psoPolish (optional)
 %          a particle swarm seeded with the best result, for a final polish.
@@ -42,7 +45,7 @@ function opts = busLayoutOptions(varargin)
     % IEEE-33 aggregate demand: 3715 kW + j2300 kvar -> |S| = 4.37 MVA.
     % Ergon Energy's after-diversity maximum demand (ADMD) per detached
     % suburban dwelling is ~5 kVA (Shahnia et al., 2012), so the feeder can
-    % serve about 4370 / 5 = 874 dwellings.  ieee33Tree computes the number
+    % serve about 4370 / 5 = 874 dwellings.  buildFeederTree computes the number
     % from the actual load data using this ADMD value.
     opts.admd_kVA = 5;
 
@@ -146,12 +149,12 @@ function opts = busLayoutOptions(varargin)
 
     % ---- Apply 'name', value overrides ----------------------------------------
     if mod(numel(varargin), 2) ~= 0
-        error('busLayoutOptions:args', 'Overrides must be name/value pairs.');
+        error('busLayout:defaultOptions:args', 'Overrides must be name/value pairs.');
     end
     for k = 1:2:numel(varargin)
         name = varargin{k};
         if ~isfield(opts, name)
-            error('busLayoutOptions:unknown', 'Unknown option "%s".', name);
+            error('busLayout:defaultOptions:unknown', 'Unknown option "%s".', name);
         end
         opts.(name) = varargin{k + 1};
     end

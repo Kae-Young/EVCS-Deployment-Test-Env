@@ -1,8 +1,8 @@
-function Q = snapToPixels(cov, Q)
+function busXY = snapToPixels(cov, busXY)
 %SNAPTOPIXELS Move every bus onto the centre of a coverage pixel, no two
 %buses on the same pixel.
 %
-%   Q = snapToPixels(cov, Q)      Q is 33x2 (km); all rows are snapped.
+%   busXY = snapToPixels(cov, busXY)      busXY is 33x2 (km); all rows are snapped.
 %
 %   Why snap?
 %   * It keeps every bus inside the coverage area (a bus in the sea or
@@ -15,11 +15,11 @@ function Q = snapToPixels(cov, Q)
 %   nearest free pixel.
 
     taken = false(cov.N, 1);
-    for k = 1:size(Q, 1)
-        d2 = (cov.pix(:, 1) - Q(k, 1)).^2 + (cov.pix(:, 2) - Q(k, 2)).^2;
+    for k = 1:size(busXY, 1)
+        d2 = (cov.pix(:, 1) - busXY(k, 1)).^2 + (cov.pix(:, 2) - busXY(k, 2)).^2;
         d2(taken) = inf;                     % pixels already used by a bus
         [~, j] = min(d2);
         taken(j) = true;
-        Q(k, :) = cov.pix(j, :);
+        busXY(k, :) = cov.pix(j, :);
     end
 end

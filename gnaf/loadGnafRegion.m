@@ -1,5 +1,5 @@
-function T = gnafLoad(srcFile, latLim, lonLim, keepVars, outFile)
-% GNAFLOAD Load the G-NAF addresses inside a rectangular region, optionally
+function T = loadGnafRegion(srcFile, latLim, lonLim, keepVars, outFile)
+%LOADGNAFREGION Load the G-NAF addresses inside a rectangular region, optionally
 % saving the result to a .mat cache file.
 %   srcFile  : either the culled master gnaf_master.mat (fast, ~1-2 s), or
 %              the original pipe-delimited australia_gnaf_core.psv (slow, ~40 s)

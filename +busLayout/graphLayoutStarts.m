@@ -3,7 +3,7 @@ function starts = graphLayoutStarts(cov, tree, opts)
 %
 %   starts = graphLayoutStarts(cov, tree, opts)
 %
-%   starts(k).Q    33x2 layout (km), snapped onto coverage pixels
+%   starts(k).busXY    33x2 layout (km), snapped onto coverage pixels
 %   starts(k).tag  e.g. 'KK  +x+y' or 'KKw -x+y' (which variant it is)
 %
 %   STEP 1 - DRAW THE TREE (Kamada-Kawai)
@@ -60,7 +60,7 @@ function starts = graphLayoutStarts(cov, tree, opts)
     % give it a small value (a quarter of the smallest zone) rather than 0.
     t = [0.25 * min(tree.target); tree.target];
 
-    starts = struct('Q', {}, 'tag', {});
+    starts = struct('busXY', {}, 'tag', {});
     for v = 1:size(variants, 1)
         % ---- Ideal length of each line.
         if variants{v, 2}
@@ -71,18 +71,18 @@ function starts = graphLayoutStarts(cov, tree, opts)
         X = kamadaKawai(tree, len, opts.kkIterations);
 
         for f = 1:size(flips, 1)
-            Q = fitToCoverage(X, cov, flips(f, :));
+            busXY = fitToCoverage(X, cov, flips(f, :));
 
             % Optional fixed substation: shift the whole drawing so bus 0
             % lands on the requested point (shape and orientation kept).
             if ~isempty(opts.substationLatLon)
-                s = fromLatLon(cov, opts.substationLatLon(1), opts.substationLatLon(2));
-                Q = Q + (s - Q(1, :));
+                s = busLayout.fromLatLon(cov, opts.substationLatLon(1), opts.substationLatLon(2));
+                busXY = busXY + (s - busXY(1, :));
             end
 
-            Q = snapToPixels(cov, Q);
-            if countCrossings(Q, tree) == 0
-                starts(end + 1).Q = Q; %#ok<AGROW>
+            busXY = busLayout.snapToPixels(cov, busXY);
+            if busLayout.countCrossings(busXY, tree) == 0
+                starts(end + 1).busXY = busXY; %#ok<AGROW>
                 starts(end).tag = sprintf('%-3s %+dx%+dy', variants{v, 1}, flips(f, 1), flips(f, 2));
             end
         end
@@ -144,13 +144,13 @@ function X = kamadaKawai(tree, len, iters)
 end
 
 
-function Q = fitToCoverage(X, cov, flip)
+function busXY = fitToCoverage(X, cov, flip)
 % Rotate, stretch, mirror and move the drawing X onto the coverage area.
     [cX, axX, sdX] = frame(X);
     [cC, axC, sdC] = frame(cov.pix);
     U = (X - cX) * axX';            % drawing in its own principal axes
     U = U ./ sdX .* flip;           % unit spread, optionally mirrored
-    Q = (U .* sdC) * axC + cC;      % coverage spread, coverage axes, centre
+    busXY = (U .* sdC) * axC + cC;      % coverage spread, coverage axes, centre
 end
 
 function [c, ax, sd] = frame(P)

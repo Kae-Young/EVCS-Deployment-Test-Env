@@ -1,11 +1,11 @@
-function [Qbest, info] = correctLayout(cov, Q0, tree, opts)
+function [bestXY, info] = correctLayout(cov, startXY, tree, opts)
 %CORRECTLAYOUT Nudge buses until zone areas match load shares, without ever
 %introducing a line crossing and while discouraging sharp turns.
 %
-%   [Q, info] = correctLayout(cov, Q0, tree, opts)
+%   [busXY, info] = correctLayout(cov, startXY, tree, opts)
 %
-%   Q0    33x2 starting layout (km), already on coverage pixels
-%   Q     best layout found
+%   startXY    33x2 starting layout (km), already on coverage pixels
+%   busXY     best layout found
 %   info  .F .sse .iterations .history (score per iteration) .crossings
 %
 %   ONE ITERATION
@@ -47,32 +47,32 @@ function [Qbest, info] = correctLayout(cov, Q0, tree, opts)
 %   per iteration, whatever the size of its gradient.  The (1 - beta^t)
 %   terms correct the averages for starting at zero.
 
-    Q = Q0;
-    nCross0 = countCrossings(Q, tree);           % never allowed to increase
+    busXY = startXY;
+    nCross0 = busLayout.countCrossings(busXY, tree);           % never allowed to increase
     step = opts.stepFrac * cov.D;                % km per iteration (initially)
     movable = tree.zoneIdx;                      % the substation stays put
 
-    m = zeros(size(Q)); v = zeros(size(Q));      % Adam running averages
+    m = zeros(size(busXY)); v = zeros(size(busXY));      % Adam running averages
     b1 = opts.adamBeta1; b2 = opts.adamBeta2;
 
-    [F, z] = layoutScore(cov, Q, tree, opts);
-    Qbest = Q; Fbest = F; zbest = z;
+    [F, z] = busLayout.layoutScore(cov, busXY, tree, opts);
+    bestXY = busXY; Fbest = F; zbest = z;
     history = F; stall = 0; it = 0;
 
     while it < opts.maxIter
         it = it + 1;
 
         % ---- 2. Gradient of F.
-        G = areaGradient(cov, Q, tree, z, opts);
-        d = Q(tree.br(:, 2), :) - Q(tree.br(:, 1), :);         % child - parent
-        Gline = zeros(size(Q));                                 % d(LINE)/dQ
+        G = busLayout.areaGradient(cov, busXY, tree, z, opts);
+        d = busLayout.branchVectors(busXY, tree);                    % child - parent
+        Gline = zeros(size(busXY));                                 % d(LINE)/dQ
         nb = size(tree.br, 1);
         for k = 1:nb
             Gline(tree.br(k, 2), :) = Gline(tree.br(k, 2), :) + 2 * d(k, :);
             Gline(tree.br(k, 1), :) = Gline(tree.br(k, 1), :) - 2 * d(k, :);
         end
         Gline = Gline / (nb * cov.D^2);
-        [~, ~, Gturn] = turnPenalty(Q, tree, opts);
+        [~, ~, Gturn] = busLayout.turnPenalty(busXY, tree, opts);
         G = G + opts.lambda * Gline + opts.mu * Gturn;
         G(1, :) = 0;                                            % substation fixed
 
@@ -81,33 +81,33 @@ function [Qbest, info] = correctLayout(cov, Q0, tree, opts)
         v = b2 * v + (1 - b2) * G.^2;
         mHat = m / (1 - b1^it);
         vHat = v / (1 - b2^it);
-        target = Q;
-        target(movable, :) = Q(movable, :) - step * mHat(movable, :) ./ (sqrt(vHat(movable, :)) + 1e-12);
-        target = snapToPixels(cov, target);
+        target = busXY;
+        target(movable, :) = busXY(movable, :) - step * mHat(movable, :) ./ (sqrt(vHat(movable, :)) + 1e-12);
+        target = busLayout.snapToPixels(cov, target);
 
         % ---- 4. Repair crossings by shrinking the offending moves.
         prop = target;
         frac = ones(tree.n, 1);                  % fraction of its move each bus keeps
         for tryNo = 1:opts.repairTries
-            [nc, bad] = countCrossings(prop, tree);
+            [nc, bad] = busLayout.countCrossings(prop, tree);
             if nc <= nCross0, break; end
-            bad = bad(any(prop(bad, :) ~= Q(bad, :), 2));   % only buses that moved
+            bad = bad(any(prop(bad, :) ~= busXY(bad, :), 2));   % only buses that moved
             if isempty(bad), break; end
             frac(bad) = frac(bad) / 2;
             frac(frac < 0.1) = 0;                % give up on that bus's move
-            prop(bad, :) = Q(bad, :) + frac(bad) .* (target(bad, :) - Q(bad, :));
-            prop = snapToPixels(cov, prop);
+            prop(bad, :) = busXY(bad, :) + frac(bad) .* (target(bad, :) - busXY(bad, :));
+            prop = busLayout.snapToPixels(cov, prop);
         end
-        if countCrossings(prop, tree) > nCross0
-            prop = Q;                            % reject the whole step
+        if busLayout.countCrossings(prop, tree) > nCross0
+            prop = busXY;                            % reject the whole step
         end
-        Q = prop;
+        busXY = prop;
 
         % ---- 5. Score and keep the best.
-        [F, z] = layoutScore(cov, Q, tree, opts);
+        [F, z] = busLayout.layoutScore(cov, busXY, tree, opts);
         history(end + 1) = F; %#ok<AGROW>
         if F < Fbest - 1e-10
-            Qbest = Q; Fbest = F; zbest = z; stall = 0;
+            bestXY = busXY; Fbest = F; zbest = z; stall = 0;
         else
             stall = stall + 1;
             if mod(stall, opts.stepDecayEvery) == 0
@@ -121,5 +121,5 @@ function [Qbest, info] = correctLayout(cov, Q0, tree, opts)
     info.sse = zbest.sse;
     info.iterations = it;
     info.history = history;
-    info.crossings = countCrossings(Qbest, tree);
+    info.crossings = busLayout.countCrossings(bestXY, tree);
 end

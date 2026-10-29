@@ -1,11 +1,12 @@
-function tree = ieee33Tree(branches, buses, opts)
-%IEEE33TREE Describe the IEEE-33 feeder as a tree for the layout functions.
+function tree = buildFeederTree(branches, buses, opts)
+%BUILDFEEDERTREE Describe a radial feeder (IEEE-33 by default) as a tree
+%for the layout functions.
 %
-%   tree = ieee33Tree()                      reads networkData33Bus()
-%   tree = ieee33Tree(branches, buses)       uses tables you already loaded
-%   tree = ieee33Tree(branches, buses, opts) also uses opts.admd_kVA
+%   tree = buildFeederTree()                      reads networkData33Bus()
+%   tree = buildFeederTree(branches, buses)       uses tables you already loaded
+%   tree = buildFeederTree(branches, buses, opts) also uses opts.admd_kVA
 %
-%   INDEXING CONVENTION (used by every function in this folder)
+%   INDEXING CONVENTION (used by every function in the package)
 %   ------------------------------------------------------------
 %   networkData33Bus numbers the nodes 0..32 (0 = substation).  MATLAB arrays
 %   start at 1, so here
@@ -13,7 +14,7 @@ function tree = ieee33Tree(branches, buses, opts)
 %         array index k  <->  IEEE node number k-1
 %
 %   i.e. index 1 is the substation and indices 2..33 are buses 1..32.
-%   A layout is always a 33x2 matrix Q of [x y] positions in km, one row per
+%   A layout is always a 33x2 matrix busXY of [x y] positions in km, one row per
 %   index.  Only rows 2..33 (the loaded buses) get Voronoi zones; row 1 (the
 %   substation) has no load, so it gets no zone and is held fixed.
 %
@@ -39,20 +40,20 @@ function tree = ieee33Tree(branches, buses, opts)
 %   lines n->a and n->b:
 %     isSibling = 0 : a = parent of n, b = a child of n   (a "turn")
 %     isSibling = 1 : a and b are two children of n        (a "split")
-%   layoutGeometry uses these to penalise hairpins.
+%   turnPenalty uses these to penalise hairpins.
 
     if nargin < 2 || isempty(branches)
         [branches, ~, buses] = networkData33Bus();
     end
     if nargin < 3
-        opts = busLayoutOptions();
+        opts = busLayout.defaultOptions();
     end
 
-    % ---- Branches: networkData33Bus stores RecvNode = upstream (parent),
-    %      SendNode = downstream (child), both 0-based -> add 1.
-    par = double(branches.RecvNode(:)) + 1;
-    chi = double(branches.SendNode(:)) + 1;
-    tree.n  = 33;
+    % ---- Branches: networkData33Bus stores FromNode = upstream (parent),
+    %      ToNode = downstream (child), both 0-based -> add 1.
+    par = double(branches.FromNode(:)) + 1;
+    chi = double(branches.ToNode(:)) + 1;
+    tree.n  = height(buses);
     tree.br = [par chi];
 
     tree.parent = zeros(tree.n, 1);
@@ -74,7 +75,7 @@ function tree = ieee33Tree(branches, buses, opts)
     tree.target  = tree.P_kW(tree.zoneIdx) / sum(tree.P_kW(tree.zoneIdx));
 
     % ---- Feeder capacity expressed as a number of dwellings:
-    %      |S| = sqrt(P^2 + Q^2) = sqrt(3715^2 + 2300^2) = 4369 kVA
+    %      |S| = sqrt(P^2 + busXY^2) = sqrt(3715^2 + 2300^2) = 4369 kVA
     %      4369 kVA / 5 kVA per dwelling = 874 dwellings
     S_kVA = hypot(sum(tree.P_kW), sum(tree.Q_kvar));
     tree.dwellings = round(S_kVA / opts.admd_kVA);

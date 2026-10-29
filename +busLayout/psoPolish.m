@@ -1,7 +1,7 @@
-function [Qbest, info] = psoPolish(cov, Qseed, tree, opts)
+function [bestXY, info] = psoPolish(cov, seedXY, tree, opts)
 %PSOPOLISH Optional particle-swarm polish of an already-corrected layout.
 %
-%   [Q, info] = psoPolish(cov, Qseed, tree, opts)
+%   [busXY, info] = psoPolish(cov, seedXY, tree, opts)
 %
 %   Only worth using AFTER correctLayout.  In testing on six feeder-sized
 %   areas it lowered F by 3-16% at about 4x the run time; a swarm started
@@ -10,8 +10,8 @@ function [Qbest, info] = psoPolish(cov, Qseed, tree, opts)
 %   HOW IT WORKS
 %   ------------
 %   Each particle is a complete layout: the 32 movable bus positions
-%   (64 numbers).  Particle 1 starts exactly on Qseed; the others start on
-%   Qseed plus random jitter of 1%, 3% or 10% of D, so the swarm explores
+%   (64 numbers).  Particle 1 starts exactly on seedXY; the others start on
+%   seedXY plus random jitter of 1%, 3% or 10% of D, so the swarm explores
 %   close to and a little further from the seed.
 %
 %   Every iteration each particle's velocity is updated as
@@ -30,7 +30,7 @@ function [Qbest, info] = psoPolish(cov, Qseed, tree, opts)
 %   comparison.
 
     rng(opts.psoSeed);
-    score = @(Xp) psoScore(Xp, Qseed, tree.zoneIdx, cov, tree, opts);
+    score = @(Xp) psoScore(Xp, seedXY, tree.zoneIdx, cov, tree, opts);
     nP = opts.psoParticles;
     mv = tree.zoneIdx;                           % movable rows
     lo = min(cov.pix, [], 1); hi = max(cov.pix, [], 1);
@@ -43,7 +43,7 @@ function [Qbest, info] = psoPolish(cov, Qseed, tree, opts)
         else
             jitter = opts.psoJitterFrac(mod(p - 2, numel(opts.psoJitterFrac)) + 1) * cov.D;
         end
-        X(:, :, p) = clampBox(Qseed(mv, :) + jitter * randn(numel(mv), 2), lo, hi);
+        X(:, :, p) = clampBox(seedXY(mv, :) + jitter * randn(numel(mv), 2), lo, hi);
     end
     V = zeros(size(X));
 
@@ -73,21 +73,21 @@ function [Qbest, info] = psoPolish(cov, Qseed, tree, opts)
         end
     end
 
-    Qbest = Qseed; Qbest(mv, :) = gBest;
-    Qbest = snapToPixels(cov, Qbest);
-    [info.F, z] = layoutScore(cov, Qbest, tree, opts);
+    bestXY = seedXY; bestXY(mv, :) = gBest;
+    bestXY = busLayout.snapToPixels(cov, bestXY);
+    [info.F, z] = busLayout.layoutScore(cov, bestXY, tree, opts);
     info.sse = z.sse;
     info.history = history;
-    info.crossings = countCrossings(Qbest, tree);
+    info.crossings = busLayout.countCrossings(bestXY, tree);
 
 end
 
-function s = psoScore(Xp, Qseed, mv, cov, tree, opts)
+function s = psoScore(Xp, seedXY, mv, cov, tree, opts)
 % Score of one particle: F of its snapped layout plus the crossing penalty.
-    Qp = Qseed; Qp(mv, :) = Xp;
-    Qp = snapToPixels(cov, Qp);
-    s = layoutScore(cov, Qp, tree, opts) + ...
-        opts.psoCrossingPenalty * countCrossings(Qp, tree);
+    particleXY = seedXY; particleXY(mv, :) = Xp;
+    particleXY = busLayout.snapToPixels(cov, particleXY);
+    s = busLayout.layoutScore(cov, particleXY, tree, opts) + ...
+        opts.psoCrossingPenalty * busLayout.countCrossings(particleXY, tree);
 end
 
 function X = clampBox(X, lo, hi)

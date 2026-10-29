@@ -1,11 +1,11 @@
-function res = generateBusLayout(cov, tree, opts)
-%GENERATEBUSLAYOUT Place the IEEE-33 buses over a coverage area.
+function res = generate(cov, tree, opts)
+%GENERATE Place the IEEE-33 buses over a coverage area.
 %
-%   res = generateBusLayout(cov, tree, opts)
+%   res = generate(cov, tree, opts)
 %
 %   cov   coverage area   (coverageFromAddresses or coverageFromPolygon)
-%   tree  feeder          (ieee33Tree)
-%   opts  settings        (busLayoutOptions)
+%   tree  feeder          (buildFeederTree)
+%   opts  settings        (defaultOptions)
 %
 %   ALGORITHM
 %   ---------
@@ -19,7 +19,7 @@ function res = generateBusLayout(cov, tree, opts)
 %
 %   RESULT FIELDS
 %   -------------
-%     res.Q          33x2 bus positions (km, coverage frame)
+%     res.busXY          33x2 bus positions (km, coverage frame)
 %     res.lat/.lon   33x1 bus positions in degrees
 %     res.nodeNo     33x1 IEEE node numbers (0 = substation)
 %     res.zone       ny x nx image, 0 outside the coverage, otherwise the
@@ -38,37 +38,37 @@ function res = generateBusLayout(cov, tree, opts)
 %     res.runtime_s
 
     t0 = tic;
-    starts = graphLayoutStarts(cov, tree, opts);
+    starts = busLayout.graphLayoutStarts(cov, tree, opts);
     if opts.verbose
         fprintf('  %d starting layouts (Kamada-Kawai variants without crossings)\n', numel(starts));
     end
 
     best = []; startsF = zeros(numel(starts), 1);
     for s = 1:numel(starts)
-        [Q, info] = correctLayout(cov, starts(s).Q, tree, opts);
+        [busXY, info] = busLayout.correctLayout(cov, starts(s).busXY, tree, opts);
         startsF(s) = info.F;
         if opts.verbose
             fprintf('    start %d (%s): F = %.4e after %3d iterations\n', ...
                 s, starts(s).tag, info.F, info.iterations);
         end
         if isempty(best) || info.F < best.F
-            best = struct('Q', Q, 'F', info.F, 'tag', starts(s).tag, 'history', info.history);
+            best = struct('busXY', busXY, 'F', info.F, 'tag', starts(s).tag, 'history', info.history);
         end
     end
 
     if opts.usePSO
         if opts.verbose, fprintf('  PSO polish ...\n'); end
-        [Q, info] = psoPolish(cov, best.Q, tree, opts);
+        [busXY, info] = busLayout.psoPolish(cov, best.busXY, tree, opts);
         if info.F < best.F
-            best.Q = Q; best.F = info.F;
+            best.busXY = busXY; best.F = info.F;
         end
     end
 
     % ---- Package the result.
-    Q = best.Q;
-    [F, z, parts] = layoutScore(cov, Q, tree, opts);
-    res.Q = Q;
-    [res.lat, res.lon] = toLatLon(cov, Q);
+    busXY = best.busXY;
+    [F, z, parts] = busLayout.layoutScore(cov, busXY, tree, opts);
+    res.busXY = busXY;
+    [res.lat, res.lon] = busLayout.toLatLon(cov, busXY);
     res.nodeNo = tree.nodeNo;
     res.zone = zeros(size(cov.mask));
     res.zone(cov.idx) = tree.nodeNo(tree.zoneIdx(z.label));
@@ -78,10 +78,10 @@ function res = generateBusLayout(cov, tree, opts)
     res.maxAbsErr = z.maxAbs;
     res.meanRelErr = z.meanRel;
     res.maxRelErr = z.maxRel;
-    res.crossings = countCrossings(Q, tree);
-    [~, ang] = turnPenalty(Q, tree, opts);
+    res.crossings = busLayout.countCrossings(busXY, tree);
+    [~, ang] = busLayout.turnPenalty(busXY, tree, opts);
     res.sharpestTurn_deg = min(ang(tree.triples(:, 4) == 0));
-    d = Q(tree.br(:, 2), :) - Q(tree.br(:, 1), :);
+    d = busLayout.branchVectors(busXY, tree);
     res.lineLength_km = sum(sqrt(sum(d.^2, 2)));
     res.F = F; res.parts = parts;
     res.startTag = best.tag; res.startsF = startsF;

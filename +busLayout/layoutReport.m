@@ -1,5 +1,5 @@
 function txt = layoutReport(res, cov, opts)
-%LAYOUTREPORT Text summary of a generateBusLayout result (for the app's
+%LAYOUTREPORT Text summary of a generate result (for the app's
 %output box, the command window or a log file).
 %
 %   txt = layoutReport(res, cov, opts)

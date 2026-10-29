@@ -4,7 +4,7 @@ function fig = busLayoutSettingsDialog(opts, parentFig, onApply)
 %   busLayoutSettingsDialog(opts, parentFig, onApply)
 %   fig = busLayoutSettingsDialog(...)
 %
-%   opts       current settings (busLayoutOptions) shown in the dialog
+%   opts       current settings (busLayout.defaultOptions) shown in the dialog
 %   parentFig  figure to centre the dialog over (or [])
 %   onApply    function handle, called as onApply(newOpts) when the user
 %              presses Apply.  Cancel or the window's close button just
@@ -19,15 +19,15 @@ function fig = busLayoutSettingsDialog(opts, parentFig, onApply)
 %
 %   Settings are grouped on four tabs; hover over any setting to see what it
 %   does.  "Restore defaults" resets every field on every tab to
-%   busLayoutOptions().  Settings that the app sets itself (substation
+%   busLayout.defaultOptions().  Settings that the app sets itself (substation
 %   location, clip polygon, verbose) are not shown.
 %
-%   To add a setting: add a field (with a comment) to busLayoutOptions, then
+%   To add a setting: add a field (with a comment) to busLayout.defaultOptions, then
 %   one row to the SPEC table below.
 
     if nargin < 2, parentFig = []; end
     if nargin < 3, onApply = @(o) []; end
-    defaults = busLayoutOptions();
+    defaults = busLayout.defaultOptions();
 
     % ---- SPEC: one row per setting --------------------------------------
     %   {tab, field, label, kind, limits/choices, tooltip}

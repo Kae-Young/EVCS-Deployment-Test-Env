@@ -1,7 +1,7 @@
-function [F, z, parts] = layoutScore(cov, Q, tree, opts)
+function [F, z, parts] = layoutScore(cov, busXY, tree, opts)
 %LAYOUTSCORE Objective value of a layout (lower is better).
 %
-%   [F, z, parts] = layoutScore(cov, Q, tree, opts)
+%   [F, z, parts] = layoutScore(cov, busXY, tree, opts)
 %
 %        F = SSE + lambda * LINE + mu * TURN
 %
@@ -22,10 +22,10 @@ function [F, z, parts] = layoutScore(cov, Q, tree, opts)
 %
 %   parts holds each term separately for reporting.
 
-    z = voronoiZones(cov, Q, tree);
-    d = Q(tree.br(:, 2), :) - Q(tree.br(:, 1), :);
-    parts.sse  = sum(errorWeights(tree, opts) .* z.err.^2);
+    z = busLayout.voronoiZones(cov, busXY, tree);
+    d = busLayout.branchVectors(busXY, tree);
+    parts.sse  = sum(busLayout.errorWeights(tree, opts) .* z.err.^2);
     parts.line = mean(sum(d.^2, 2)) / cov.D^2;
-    parts.turn = turnPenalty(Q, tree, opts);
+    parts.turn = busLayout.turnPenalty(busXY, tree, opts);
     F = parts.sse + opts.lambda * parts.line + opts.mu * parts.turn;
 end

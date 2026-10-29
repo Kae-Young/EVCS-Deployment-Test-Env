@@ -1,9 +1,9 @@
-function ax = plotBusLayout(cov, tree, res, ax, name)
-%PLOTBUSLAYOUT Draw the electrical zones, feeder lines and buses.
+function ax = plotLayout(cov, tree, res, ax, name)
+%PLOTLAYOUT Draw the electrical zones, feeder lines and buses.
 %
-%   plotBusLayout(cov, tree, res)        new figure
-%   plotBusLayout(cov, tree, res, ax)    into existing axes
-%   plotBusLayout(cov, tree, res, ax, name)   with a name above the stats
+%   plotLayout(cov, tree, res)        new figure
+%   plotLayout(cov, tree, res, ax)    into existing axes
+%   plotLayout(cov, tree, res, ax, name)   with a name above the stats
 %
 %   Zones are shaded by feeder section (main feeder and each lateral get
 %   their own colour) with white zone boundaries; addresses are grey dots;
@@ -15,18 +15,8 @@ function ax = plotBusLayout(cov, tree, res, ax, name)
     end
     hold(ax, 'on');
 
-    % ---- Colour per feeder section.
-    palette = [0.30 0.45 0.69;    % main feeder
-               0.87 0.52 0.32;    % 1st lateral
-               0.33 0.66 0.41;    % 2nd lateral
-               0.77 0.31 0.32;    % 3rd lateral
-               0.51 0.45 0.70;    % more, if a different feeder is used
-               0.58 0.47 0.38];
-    secs = unique(tree.lateral);                 % 0 first = main feeder
-    secOf = zeros(tree.n, 1);
-    for s = 1:numel(secs)
-        secOf(tree.lateral == secs(s)) = mod(s - 1, size(palette, 1)) + 1;
-    end
+    % ---- Colour per feeder section (main feeder, then each lateral).
+    [~, secOf, palette] = busLayout.feederSectionColours(tree);
 
     % ---- Zone image: light section colour, white boundaries and outside.
     [ny, nx] = size(cov.mask);
@@ -43,27 +33,27 @@ function ax = plotBusLayout(cov, tree, res, ax, name)
         layer(edge & cov.mask) = 1;
         img(:, :, ch) = layer;
     end
-    W = nx * cov.cell; H = ny * cov.cell;
-    image(ax, [cov.cell / 2, W - cov.cell / 2], [cov.cell / 2, H - cov.cell / 2], img);
+    W = nx * cov.pixelSize_km; H = ny * cov.pixelSize_km;
+    image(ax, [cov.pixelSize_km / 2, W - cov.pixelSize_km / 2], [cov.pixelSize_km / 2, H - cov.pixelSize_km / 2], img);
     set(ax, 'YDir', 'normal');
 
     % ---- Coverage outline, addresses, lines, buses.
-    contour(ax, ((1:nx) - 0.5) * cov.cell, ((1:ny) - 0.5) * cov.cell, ...
+    contour(ax, ((1:nx) - 0.5) * cov.pixelSize_km, ((1:ny) - 0.5) * cov.pixelSize_km, ...
             double(cov.mask), [0.5 0.5], 'Color', [0.4 0.4 0.4]);
     if isfield(cov, 'addr') && ~isempty(cov.addr)
         plot(ax, cov.addr(:, 1), cov.addr(:, 2), '.', 'Color', [0.45 0.45 0.45], 'MarkerSize', 3);
     end
-    Q = res.Q;
+    busXY = res.busXY;
     for k = 1:size(tree.br, 1)
-        plot(ax, Q(tree.br(k, :), 1), Q(tree.br(k, :), 2), '-', 'Color', [0.1 0.1 0.1], 'LineWidth', 1.2);
+        plot(ax, busXY(tree.br(k, :), 1), busXY(tree.br(k, :), 2), '-', 'Color', [0.1 0.1 0.1], 'LineWidth', 1.2);
     end
     for k = tree.zoneIdx
-        plot(ax, Q(k, 1), Q(k, 2), 'o', 'MarkerSize', 5, 'MarkerEdgeColor', 'k', ...
+        plot(ax, busXY(k, 1), busXY(k, 2), 'o', 'MarkerSize', 5, 'MarkerEdgeColor', 'k', ...
              'MarkerFaceColor', palette(secOf(k), :));
-        text(ax, Q(k, 1), Q(k, 2), sprintf('  %d', tree.nodeNo(k)), 'FontSize', 7, ...
+        text(ax, busXY(k, 1), busXY(k, 2), sprintf('  %d', tree.nodeNo(k)), 'FontSize', 7, ...
              'VerticalAlignment', 'bottom', 'Color', 'k');
     end
-    plot(ax, Q(1, 1), Q(1, 2), 's', 'MarkerSize', 8, 'MarkerEdgeColor', 'k', ...
+    plot(ax, busXY(1, 1), busXY(1, 2), 's', 'MarkerSize', 8, 'MarkerEdgeColor', 'k', ...
          'MarkerFaceColor', [1 0.85 0.1]);
 
     % ---- 500 m scale bar.

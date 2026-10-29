@@ -1,11 +1,11 @@
-function z = voronoiZones(cov, Q, tree)
+function z = voronoiZones(cov, busXY, tree)
 %VORONOIZONES Raster Voronoi diagram: give every coverage pixel to its nearest bus.
 %
-%   z = voronoiZones(cov, Q, tree)
+%   z = voronoiZones(cov, busXY, tree)
 %
 %   cov   coverage struct (coverageFromAddresses / coverageFromPolygon)
-%   Q     33x2 bus positions in km (row 1 = substation, ignored here)
-%   tree  ieee33Tree()
+%   busXY     33x2 bus positions in km (row 1 = substation, ignored here)
+%   tree  buildFeederTree()
 %
 %   WHY A RASTER?
 %   A true Voronoi diagram is unbounded and has to be clipped to an irregular
@@ -24,7 +24,7 @@ function z = voronoiZones(cov, Q, tree)
 %     z.meanRel  mean |err| / target      (typical error relative to target)
 %     z.maxRel   max  |err| / target      (worst bus relative to its target)
 
-    Z = Q(tree.zoneIdx, :);                 % positions of the 32 loaded buses
+    Z = busXY(tree.zoneIdx, :);                 % positions of the 32 loaded buses
     nz = size(Z, 1);
 
     % Nearest-bus search by brute force: for each bus, the squared distance

@@ -7,7 +7,7 @@ function cov = coverageFromAddresses(lat, lon, seedLatLon, nDwellings, opts)
 %   seedLatLon   [lat lon] of the centre of the study area
 %   nDwellings   how many addresses the feeder should serve
 %                (tree.dwellings = 874 for IEEE-33 at 5 kVA ADMD)
-%   opts         busLayoutOptions()
+%   opts         defaultOptions()
 %
 %   HOW THE AREA IS BUILT
 %   ---------------------
@@ -33,41 +33,37 @@ function cov = coverageFromAddresses(lat, lon, seedLatLon, nDwellings, opts)
 
     % ---- 1-2. Local km coordinates centred on the seed, then the nearest N.
     lat0 = seedLatLon(1); lon0 = seedLatLon(2);
-    [kx, ky] = kmPerDegree(lat0);
+    [kx, ky] = busLayout.kmPerDegree(lat0);
     X = [(lon - lon0) * kx, (lat - lat0) * ky];
     [~, order] = sort(X(:, 1).^2 + X(:, 2).^2);
     n = min(nDwellings, numel(order));
     addr = X(order(1:n), :);
 
-    % Shift so the patch starts at (margin, margin) - all coordinates >= 0.
-    offset = min(addr, [], 1) - opts.margin_km;
-    addr = addr - offset;
-    W = max(addr(:, 1)) + opts.margin_km;
-    H = max(addr(:, 2)) + opts.margin_km;
-
-    % ---- 3. Pixel size so that the W x H box holds ~targetPixels pixels.
-    cell = sqrt(W * H / opts.targetPixels);
-    nx = ceil(W / cell); ny = ceil(H / cell);
-    ix = min(max(floor(addr(:, 1) / cell) + 1, 1), nx);   % column of each address
-    iy = min(max(floor(addr(:, 2) / cell) + 1, 1), ny);   % row (row 1 = south)
+    % ---- 3. Pixel grid over the patch (shifted so all coordinates >= 0).
+    grid = busLayout.rasterGrid(addr, opts);
+    addr = addr - grid.offset;
+    pixelSize_km = grid.pixelSize_km;
+    nx = grid.nx; ny = grid.ny;
+    ix = min(max(floor(addr(:, 1) / pixelSize_km) + 1, 1), nx);   % column of each address
+    iy = min(max(floor(addr(:, 2) / pixelSize_km) + 1, 1), ny);   % row (row 1 = south)
     occupied = false(ny, nx);
     occupied(sub2ind([ny nx], iy, ix)) = true;
 
     % ---- 4. Buffer each address.
-    rb = max(1, round(opts.bufferRadius_km / cell));
+    rb = max(1, round(opts.bufferRadius_km / pixelSize_km));
     mask = dilate(occupied, rb);
 
     % ---- 5. Close gaps.  Pad first so the deflate step does not eat the
     %      edges of the grid, then crop the padding off again.
-    rc = max(1, round(opts.closeRadius_km / cell));
+    rc = max(1, round(opts.closeRadius_km / pixelSize_km));
     padded = false(ny + 2 * rc, nx + 2 * rc);
     padded(rc + 1:rc + ny, rc + 1:rc + nx) = mask;
     padded = erode(dilate(padded, rc), rc);
     mask = padded(rc + 1:rc + ny, rc + 1:rc + nx);
 
     % ---- 6. Holes, clip, largest piece, pixel list.
-    geo = struct('lat0', lat0, 'lon0', lon0, 'kx', kx, 'ky', ky, 'offset', offset);
-    cov = finishCoverage(mask, cell, geo, opts);
+    geo = struct('lat0', lat0, 'lon0', lon0, 'kx', kx, 'ky', ky, 'offset', grid.offset);
+    cov = busLayout.finishCoverage(mask, pixelSize_km, geo, opts);
     cov.addr = addr;                     % kept for plotting
 end
 

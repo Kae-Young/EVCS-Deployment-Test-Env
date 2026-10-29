@@ -5,13 +5,13 @@ function [branches, tieLines, buses] = networkData33Bus()
 %
 %   branches (32 rows) - line data only
 %       BranchNo   Branch number
-%       RecvNode   Upstream node, towards the substation (node 0 = substation)
-%       SendNode   Downstream node fed by this branch
+%       FromNode   Upstream node, towards the substation (node 0 = substation)
+%       ToNode     Downstream node fed by this branch
 %       R_ohm      Branch resistance (ohm)
 %       X_ohm      Branch reactance (ohm)
 %
 %   tieLines (5 rows) - normally-open tie switches
-%       BranchNo, RecvNode, SendNode, R_ohm, X_ohm
+%       BranchNo, FromNode, ToNode, R_ohm, X_ohm
 %
 %   buses (33 rows, nodes 0..32) - bus/load data
 %       Node       Bus number (0 = substation)
@@ -30,9 +30,9 @@ function [branches, tieLines, buses] = networkData33Bus()
 %
 %   Note: node numbering is 0-based as in the source table (0 = substation).
 %   Row i of buses is node i-1, so buses(node+1,:) looks up a node, and
-%   graph(branches.RecvNode+1, branches.SendNode+1) builds the network.
+%   graph(branches.FromNode+1, branches.ToNode+1) builds the network.
 
-    % BrNo RcNd SnNd   r(ohm)  x(ohm)   PL(kW) QL(kvar) |V|^2
+    % BrNo From  To    r(ohm)  x(ohm)   PL(kW) QL(kvar) |V|^2
     B = [
          1    0    1   0.0922  0.0470   100     60     0.9927
          2    1    2   0.4930  0.2511    90     40     0.9574
@@ -70,7 +70,7 @@ function [branches, tieLines, buses] = networkData33Bus()
 
     % ---- Branch (line) data ----
     branches = array2table(B(:,1:5), 'VariableNames', ...
-        {'BranchNo','RecvNode','SendNode','R_ohm','X_ohm'});
+        {'BranchNo','FromNode','ToNode','R_ohm','X_ohm'});
 
     % ---- Bus data (load sits at the node each branch feeds) ----
     nNodes = 33;                         % nodes 0..32
@@ -78,7 +78,7 @@ function [branches, tieLines, buses] = networkData33Bus()
     PL_kW    = zeros(nNodes,1);
     QL_kvar  = zeros(nNodes,1);
     VSquared = ones(nNodes,1);           % substation = 1.0 p.u.
-    idx = B(:,3) + 1;                    % SendNode -> row index
+    idx = B(:,3) + 1;                    % ToNode -> row index
     PL_kW(idx)    = B(:,6);
     QL_kvar(idx)  = B(:,7);
     VSquared(idx) = B(:,8);
@@ -93,7 +93,7 @@ function [branches, tieLines, buses] = networkData33Bus()
     buses.SL_share = SL_kVA / sum(SL_kVA);                  % apparent
 
     % ---- Tie lines (normally open) ----
-    % BrNo RcNd SnNd  r(ohm)  x(ohm)
+    % BrNo From  To   r(ohm)  x(ohm)
     T = [
         33    7   20   2.0000  2.0000
         34    8   14   2.0000  2.0000
@@ -103,5 +103,5 @@ function [branches, tieLines, buses] = networkData33Bus()
     ];
 
     tieLines = array2table(T, 'VariableNames', ...
-        {'BranchNo','RecvNode','SendNode','R_ohm','X_ohm'});
+        {'BranchNo','FromNode','ToNode','R_ohm','X_ohm'});
 end

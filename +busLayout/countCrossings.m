@@ -1,7 +1,7 @@
-function [n, buses] = countCrossings(Q, tree)
+function [n, buses] = countCrossings(busXY, tree)
 %COUNTCROSSINGS Number of pairs of feeder lines that cross each other.
 %
-%   [n, buses] = countCrossings(Q, tree)
+%   [n, buses] = countCrossings(busXY, tree)
 %
 %   n      number of crossing line pairs
 %   buses  indices of every bus at either end of a crossing line (used by
@@ -16,8 +16,8 @@ function [n, buses] = countCrossings(Q, tree)
 %   the sign of the 2-D cross product (orientation test).
 
     P = tree.crossPairs;
-    A = Q(tree.br(P(:, 1), 1), :);  B = Q(tree.br(P(:, 1), 2), :);
-    C = Q(tree.br(P(:, 2), 1), :);  D = Q(tree.br(P(:, 2), 2), :);
+    A = busXY(tree.br(P(:, 1), 1), :);  B = busXY(tree.br(P(:, 1), 2), :);
+    C = busXY(tree.br(P(:, 2), 1), :);  D = busXY(tree.br(P(:, 2), 2), :);
 
     hit = orient(A, B, C) .* orient(A, B, D) < 0 & ...
           orient(C, D, A) .* orient(C, D, B) < 0;
